@@ -1,6 +1,7 @@
 """Focused regression checks for the seven-feature MVP backend."""
 import importlib
 import os
+import uuid
 
 os.environ["DATABASE_PATH"] = "/tmp/ai_teech_test_learning.db"
 
@@ -56,7 +57,7 @@ def test_demo_seed_is_repeat_safe():
 
 def test_idempotency_and_live_ai_fallback(monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
-    key = "test-answer-one-time-unique"
+    key = f"test-answer-{uuid.uuid4()}"
     payload={"student_id":"demo-ananya","question_id":"q5","answer":1,
              "reasoning":"Current is voltage divided by resistance.","request_key":key}
     response=client.post("/api/answers",json=payload)

@@ -171,7 +171,9 @@ def answer(body: AnswerRequest):
             raise HTTPException(409,"Answer already submitted. Refresh the profile before continuing.")
         prior = next((m for m in get_mastery(db,body.student_id) if m["concept_id"]==question["concept_id"]),None)
         correct = body.answer==question["answer"]
-        analysis = analyze_with_model(question,body.answer,body.reasoning) or evaluate_reasoning(question,body.answer,body.reasoning)
+        # Synthetic fixtures stay offline, instant and free even when a Gemini key exists.
+        synthetic = bool(body.request_key and body.request_key.startswith("demo-seed-"))
+        analysis = (None if synthetic else analyze_with_model(question,body.answer,body.reasoning)) or evaluate_reasoning(question,body.answer,body.reasoning)
         delta = 12 if correct and analysis["reasoning_quality"]=="strong" else 5 if correct else -10 if analysis["misconception"] else -6
         updated = max(0,min(100,prior["score"]+delta))
         attempts = prior["attempts"]+1
