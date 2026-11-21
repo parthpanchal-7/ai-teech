@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 170" role="img" aria-labelledby="title desc">
+  <title id="title">Ai-Teech Logo Concept</title>
+  <desc id="desc">An original open book with a learner silhouette and spark next to the ai-teech wordmark.</desc>
+  <rect width="620" height="170" rx="30" fill="#FFFDF5"/>
+  <g transform="translate(27 23)">
+    <rect width="126" height="124" rx="28" fill="#BD47F2"/>
+    <path d="M20 78 Q42 67 63 84 Q83 67 106 78 L106 105 Q82 95 63 110 Q42 95 20 105 Z" fill="#FFFDF5"/>
+    <path d="M63 84 V109" stroke="#0C0C12" stroke-width="3.5" stroke-linecap="round"/>
+    <circle cx="63" cy="44" r="15" fill="#FFFDF5"/>
+    <path d="M37 77 Q37 56 63 56 Q89 56 89 77" fill="#FFFDF5"/>
+    <path d="M94 25 L98 36 L109 40 L98 44 L94 55 L90 44 L79 40 L90 36 Z" fill="#91FE00"/>
+  </g>
+  <text x="174" y="106" font-family="Arial, sans-serif" font-size="62" letter-spacing="-3" font-weight="700" fill="#0C0C12">ai-<tspan fill="#BD47F2">teech</tspan></text>
+  <text x="178" y="132" font-family="Arial, sans-serif" font-size="16" letter-spacing="2" fill="#514B58">LEARN IT. PROVE IT. OWN IT.</text>
+</svg>

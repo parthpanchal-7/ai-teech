@@ -1,0 +1,20 @@
+# Dependency and build artifacts
+node_modules/
+dist/
+*.tsbuildinfo
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+
+# Secrets, runtime database and local configuration
+.env
+.env.local
+*.db
+*.db-shm
+*.db-wal
+!*.env.example
+
+# OS/editor
+.DS_Store
+.vscode/
