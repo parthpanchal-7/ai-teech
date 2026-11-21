@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from .content import CONCEPTS, CONCEPT_BY_ID, QUESTIONS, QUESTION_BY_ID, public_question
+from .ai import analyze_with_model
 
 DB_PATH = os.getenv("DATABASE_PATH", str(Path(__file__).resolve().parent.parent / "ai_teech.db"))
 app = FastAPI(title="Ai-Teech Learning API", version="0.1.0")
@@ -52,8 +53,14 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT, student_id TEXT NOT NULL, concept_id TEXT NOT NULL,
             question_id TEXT NOT NULL, answer INTEGER NOT NULL, correct INTEGER NOT NULL,
             reasoning TEXT NOT NULL, misconception TEXT, difficulty TEXT NOT NULL,
-            created_at TEXT NOT NULL, FOREIGN KEY(student_id) REFERENCES students(id));
+            created_at TEXT NOT NULL, request_key TEXT UNIQUE,
+            FOREIGN KEY(student_id) REFERENCES students(id));
         """)
+        # In-place, idempotent migration for the first demo database version.
+        cols = {row[1] for row in db.execute("PRAGMA table_info(attempts)")}
+        if "request_key" not in cols:
+            db.execute("ALTER TABLE attempts ADD COLUMN request_key TEXT")
+        db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_attempt_request_key ON attempts(request_key)")
         db.executemany("INSERT OR IGNORE INTO students(id,name) VALUES (?,?)", [
             ("demo-parth", "Parth (demo)"), ("demo-ananya", "Ananya (demo)"), ("demo-rahul", "Rahul (demo)"),
         ])
@@ -120,6 +127,7 @@ class AnswerRequest(BaseModel):
     question_id: str
     answer: int = Field(ge=0, le=3)
     reasoning: str = Field(min_length=8, max_length=1000)
+    request_key: str | None = Field(default=None, min_length=8, max_length=100)
 
 @app.get("/health")
 def health():
@@ -159,9 +167,11 @@ def answer(body: AnswerRequest):
     if not question: raise HTTPException(404,"Unknown question")
     with database() as db:
         ensure_student(db,body.student_id)
+        if body.request_key and db.execute("SELECT 1 FROM attempts WHERE request_key=?",(body.request_key,)).fetchone():
+            raise HTTPException(409,"Answer already submitted. Refresh the profile before continuing.")
         prior = next((m for m in get_mastery(db,body.student_id) if m["concept_id"]==question["concept_id"]),None)
         correct = body.answer==question["answer"]
-        analysis = evaluate_reasoning(question,body.answer,body.reasoning)
+        analysis = analyze_with_model(question,body.answer,body.reasoning) or evaluate_reasoning(question,body.answer,body.reasoning)
         delta = 12 if correct and analysis["reasoning_quality"]=="strong" else 5 if correct else -10 if analysis["misconception"] else -6
         updated = max(0,min(100,prior["score"]+delta))
         attempts = prior["attempts"]+1
@@ -173,8 +183,8 @@ def answer(body: AnswerRequest):
             score=excluded.score,attempts=excluded.attempts,correct_count=excluded.correct_count,
             next_review_at=excluded.next_review_at,updated_at=excluded.updated_at""",
             (body.student_id,question["concept_id"],updated,attempts,prior["correct_count"]+int(correct),when,utc_now()))
-        db.execute("""INSERT INTO attempts(student_id,concept_id,question_id,answer,correct,reasoning,misconception,difficulty,created_at)
-            VALUES (?,?,?,?,?,?,?,?,?)""",(body.student_id,question["concept_id"],body.question_id,body.answer,int(correct),body.reasoning,analysis["misconception"],question["difficulty"],utc_now()))
+        db.execute("""INSERT INTO attempts(student_id,concept_id,question_id,answer,correct,reasoning,misconception,difficulty,created_at,request_key)
+            VALUES (?,?,?,?,?,?,?,?,?,?)""",(body.student_id,question["concept_id"],body.question_id,body.answer,int(correct),body.reasoning,analysis["misconception"],question["difficulty"],utc_now(),body.request_key))
         # Deterministic next-step selection sees the new mastery within this transaction.
         followup=choose_question(db,body.student_id,question["concept_id"])
         return {"correct":correct,"correct_option":question["answer"],"explanation":question["explanation"],
@@ -200,3 +210,30 @@ def teacher_analytics():
         misconceptions=[dict(r) for r in db.execute("SELECT misconception AS label,COUNT(*) AS count FROM attempts WHERE misconception IS NOT NULL GROUP BY misconception ORDER BY count DESC LIMIT 6")]
         learners=[dict(r) for r in db.execute("SELECT s.name,COUNT(m.concept_id) AS assessed,ROUND(AVG(m.score),1) AS avg_mastery FROM students s LEFT JOIN mastery m ON s.id=m.student_id GROUP BY s.id ORDER BY avg_mastery ASC")]
         return {"demo_data":True,"total_learners":total,"concepts":gaps,"misconceptions":misconceptions,"learners":learners}
+
+
+@app.post("/api/demo/seed")
+def seed_demo_classroom():
+    """Idempotently populate synthetic learner attempts for the hackathon demo."""
+    if os.getenv("DEMO_MODE", "true").lower() != "true":
+        raise HTTPException(403, "Demo seeding disabled")
+    examples = [
+        ("demo-ananya", "q1", 0, "Current equals charge divided by time."),
+        ("demo-ananya", "q4", 1, "With constant voltage, current halves when resistance doubles."),
+        ("demo-ananya", "q7", 1, "Series elements share the same current along one path."),
+        ("demo-ananya", "q9", 1, "Parallel branches have the same voltage."),
+        ("demo-rahul", "q3", 0, "More resistance pushes more current through the wire."),
+        ("demo-rahul", "q4", 0, "More resistance pushes more current, so it doubles."),
+        ("demo-rahul", "q7", 0, "Series means same voltage across each resistor."),
+        ("demo-rahul", "q11", 1, "Power is voltage multiplied by current."),
+    ]
+    inserted = 0
+    for i, (student, qid, choice, reasoning) in enumerate(examples):
+        request_key = f"demo-seed-{i:02d}"
+        with database() as db:
+            exists = db.execute("SELECT 1 FROM attempts WHERE request_key=?", (request_key,)).fetchone()
+        if exists:
+            continue
+        answer(AnswerRequest(student_id=student,question_id=qid,answer=choice,reasoning=reasoning,request_key=request_key))
+        inserted += 1
+    return {"demo_data":True,"inserted":inserted,"message":"Synthetic demo class is ready"}

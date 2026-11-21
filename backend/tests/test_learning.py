@@ -42,3 +42,25 @@ def test_class_analytics_and_validation():
     assert any(m["label"] for m in analytics["misconceptions"])
     assert client.post("/api/answers",json={"student_id":"demo-parth","question_id":"bad","answer":0,"reasoning":"Some reasoning"}).status_code == 404
     assert client.post("/api/answers",json={"student_id":"demo-parth","question_id":"q1","answer":7,"reasoning":"Some reasoning"}).status_code == 422
+
+def test_demo_seed_is_repeat_safe():
+    first = client.post("/api/demo/seed")
+    assert first.status_code == 200
+    assert first.json()["inserted"] >= 0
+    again = client.post("/api/demo/seed")
+    assert again.status_code == 200
+    assert again.json()["inserted"] == 0
+    analytics = client.get("/api/teacher/analytics").json()
+    assert any(c["assessed"] > 0 for c in analytics["concepts"])
+    assert analytics["misconceptions"]
+
+def test_idempotency_and_live_ai_fallback(monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    key = "test-answer-one-time-unique"
+    payload={"student_id":"demo-ananya","question_id":"q5","answer":1,
+             "reasoning":"Current is voltage divided by resistance.","request_key":key}
+    response=client.post("/api/answers",json=payload)
+    assert response.status_code==200
+    assert response.json()["analysis_mode"] == "offline-rubric"
+    again=client.post("/api/answers",json=payload)
+    assert again.status_code==409

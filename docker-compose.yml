@@ -1,0 +1,20 @@
+services:
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_PATH: /data/ai_teech.db
+      DEMO_MODE: "true"
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+    volumes:
+      - ai_teech_data:/data
+    restart: unless-stopped
+  frontend:
+    build: ./frontend
+    ports:
+      - "${APP_PORT:-8080}:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+volumes:
+  ai_teech_data:

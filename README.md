@@ -12,12 +12,13 @@ Ai-Teech is an adaptive exam-preparation **demo MVP** for Class 10 Physics (Elec
 - Concept-tagged diagnostic question set and practice questions
 - Learner mastery updates persisted to SQLite
 - Difficulty-aware, weak-concept question selection
-- Reasoning-based misconception heuristics and transparent feedback
+- Optional Gemini structured reasoning analysis with an offline heuristic fallback
+- Guided seven-question diagnostic flow and scenario-based follow-up
 - Spaced-review dates and revision list
 - Teacher concept analytics and misconception trends across demo students
 - Responsive playful React interface
 
-**Important limits:** Demo identities are selectable from the UI; this app has no production authorization, secure teacher-scoped access, guardian-consent flow or real student accounts. The current evaluator is a transparent offline rubric (not a live LLM). Do **not** deploy it with real student personal data or publicly expose it as a school production service. AI provider integration and independent educational validation remain follow-up work.
+**Important limits:** Demo identities are selectable from the UI; this app has no production authorization, secure teacher-scoped access, guardian-consent flow or real student accounts. With a configured Gemini key the reasoning evaluator uses a hosted model; otherwise it transparently falls back to an offline rubric. Do **not** deploy it with real student personal data or publicly expose it as a school production service. Independent educational validation remains follow-up work.
 
 ## Run locally
 
@@ -46,6 +47,25 @@ npm run dev
 
 Open http://localhost:5173. Vite proxies `/api` to port 8000. Set `VITE_API_BASE_URL` when frontend and backend are on different hosts. See `.env.example` in each package.
 
+### Optional Gemini setup
+
+Copy `backend/.env.example` to `backend/.env`, set `GEMINI_API_KEY` and load the variables into the backend process. For PowerShell development sessions:
+
+```powershell
+$env:GEMINI_API_KEY="YOUR_KEY_HERE"
+$env:GEMINI_MODEL="gemini-2.5-flash"
+```
+
+`uvicorn` then reads the process environment. No key is required for the fallback demo. **Never** add this key to a frontend `VITE_` variable or commit `.env`. See Google's [structured output documentation](https://ai.google.dev/gemini-api/docs/structured-output).
+
+### One-command Docker demo
+
+```bash
+docker compose up --build -d
+```
+
+Open http://localhost:8080. The frontend proxies API calls internally, and the SQLite database is mounted on a persistent Docker named volume. Set `GEMINI_API_KEY` in the shell or a private root `.env` before starting if you want model feedback. This command has not been verified on a Docker host in this session.
+
 ## Test
 
 ```bash
@@ -58,10 +78,11 @@ npm run build
 ## Demo journey
 
 1. Select `Parth (demo)` and open Practice Lab.
-2. Answer the Ohm's Law question incorrectly (e.g., choose "Double") and explain "more resistance pushes more current".
-3. Observe misconception label, mastery change and targeted follow-up question.
-4. Open concept map and revision page.
-5. Open Teacher Insights and inspect class-level gap/misconception aggregation.
+2. Use Diagnostic Test for all 7 concept checks, then select Ohm's Law in Concept Map.
+3. Answer the Ohm's Law question incorrectly (e.g., choose "Double") and explain "more resistance pushes more current".
+4. Observe misconception label, mastery change and targeted follow-up question.
+5. Open the revision page.
+6. Open Teacher Insights and click **Load sample class data** to inspect synthetic class-level gap/misconception aggregation.
 
 ## Architecture
 
@@ -71,7 +92,7 @@ backend/   FastAPI + SQLite + deterministic learner engine
 docs/      product, brand, developer and safety handoff documentation
 ```
 
-See `docs/` for the product requirements, design decisions, API contract, AI governance, QA and Antigravity setup. Only demo endpoints are implemented; the full spec describes future production work.
+See `docs/` for the product requirements, design decisions, API contract, AI governance, QA, [hackathon demo script](docs/HACKATHON_DEMO.md), and Antigravity setup. Only demo endpoints are implemented; the full spec describes future production work.
 
 ## Security and deployment
 
