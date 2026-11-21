@@ -13,10 +13,13 @@ from typing import Literal
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from dotenv import load_dotenv
 
 from .content import CONCEPTS, CONCEPT_BY_ID, QUESTIONS, QUESTION_BY_ID, public_question
 from .ai import analyze_with_model
 
+# Load backend/.env on developer machines while keeping host-provided values authoritative.
+load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=False)
 DB_PATH = os.getenv("DATABASE_PATH", str(Path(__file__).resolve().parent.parent / "ai_teech.db"))
 app = FastAPI(title="Ai-Teech Learning API", version="0.1.0")
 app.add_middleware(
@@ -120,7 +123,7 @@ def evaluate_reasoning(question, selected_answer, reasoning):
     if not tag and correct and not evidence:
         tag = "Reasoning needs evidence"
     quality = "strong" if correct and evidence and not tag else "partial" if correct else "needs_support"
-    return {"misconception":tag,"reasoning_quality":quality,"analysis_mode":"offline-rubric","confidence":"heuristic"}
+    return {"misconception":tag,"reasoning_quality":quality,"analysis_mode":"offline-rubric","confidence":"heuristic","coach_tip":question["explanation"]}
 
 class AnswerRequest(BaseModel):
     student_id: str
@@ -132,6 +135,14 @@ class AnswerRequest(BaseModel):
 @app.get("/health")
 def health():
     return {"status":"ok","mode":"demo"}
+
+@app.get("/api/ai/status")
+def ai_status():
+    """Safe capability status; never returns an API key or private provider errors."""
+    configured = bool(os.getenv("GEMINI_API_KEY", "").strip())
+    return {"provider":"gemini", "configured":configured,
+            "evaluation_mode":"gemini-with-fallback" if configured else "offline-rubric",
+            "model":os.getenv("GEMINI_MODEL","gemini-2.5-flash") if configured else None}
 
 @app.get("/api/concepts")
 def concepts():

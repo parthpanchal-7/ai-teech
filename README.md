@@ -47,9 +47,18 @@ npm run dev
 
 Open http://localhost:5173. Vite proxies `/api` to port 8000. Set `VITE_API_BASE_URL` when frontend and backend are on different hosts. See `.env.example` in each package.
 
-### Optional Gemini setup
+### Live Gemini setup
 
-Copy `backend/.env.example` to `backend/.env`, set `GEMINI_API_KEY` and load the variables into the backend process. For PowerShell development sessions:
+1. Open [Google AI Studio](https://aistudio.google.com/apikey), create an API key, and keep it private.
+2. Copy `backend/.env.example` to `backend/.env`.
+3. Edit **only** the backend `.env` file:
+
+```dotenv
+GEMINI_API_KEY=replace_with_your_real_api_key
+GEMINI_MODEL=gemini-2.5-flash
+```
+
+The backend loads `backend/.env` automatically at startup. Restart Uvicorn after changing the file. If you prefer environment variables instead, for PowerShell:
 
 ```powershell
 $env:GEMINI_API_KEY="YOUR_KEY_HERE"
@@ -57,6 +66,15 @@ $env:GEMINI_MODEL="gemini-2.5-flash"
 ```
 
 `uvicorn` then reads the process environment. No key is required for the fallback demo. **Never** add this key to a frontend `VITE_` variable or commit `.env`. See Google's [structured output documentation](https://ai.google.dev/gemini-api/docs/structured-output).
+
+4. In the activated backend virtual environment, verify the **real provider** with one synthetic test request:
+
+```bash
+cd backend
+python -m app.ai_check
+```
+
+Expected success: `SUCCESS: Gemini returned structured reasoning feedback.` This checks network, authentication and schema using a sample Physics question without sending real student data. It consumes one model request. `GET /api/ai/status` reports whether the key is configured (it is not a live health check). The UI shows **Gemini configured** once the server sees a key; after you submit an answer, feedback labels the actual analysis mode as `gemini-structured` or `offline-rubric`. On invalid key, quota issue or timeout, offline fallback keeps the app usable.
 
 ### One-command Docker demo
 

@@ -11,6 +11,7 @@ class ModelReasoning(BaseModel):
     reasoning_quality: Literal["strong", "partial", "needs_support"]
     misconception: str | None = Field(default=None, max_length=110)
     evidence: str = Field(max_length=180)
+    coach_tip: str = Field(max_length=220, description="Short corrective hint grounded only in the provided teacher explanation")
 
 
 def analyze_with_model(question: dict, selected_answer: int, reasoning: str) -> dict | None:
@@ -33,6 +34,7 @@ def analyze_with_model(question: dict, selected_answer: int, reasoning: str) -> 
             "Do not diagnose learning ability. Identify one potential physics misconception "
             "only when the explanation supports it. If ambiguous, misconception=null. "
             "Provide a short exact evidence phrase from the student's text. "
+            "Give one supportive, factually grounded coach_tip based only on the teacher explanation. "
             f"Question: {question['prompt']}\n"
             f"Options: {question['options']}\n"
             f"Correct answer index: {question['answer']}\n"
@@ -58,6 +60,7 @@ def analyze_with_model(question: dict, selected_answer: int, reasoning: str) -> 
             "reasoning_quality": quality,
             "analysis_mode": "gemini-structured",
             "confidence": "model-suggested",
+            "coach_tip": parsed.coach_tip,
         }
     except Exception:
         # Provider outages, invalid JSON and quota failures remain non-fatal.

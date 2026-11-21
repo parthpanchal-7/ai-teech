@@ -16,6 +16,7 @@ Duration: 3-5 minutes. Run with `docker compose up --build -d` or two local dev 
 
 - **Is the mastery score clinically or scientifically calibrated?** No. The current explainable bounded update is a hackathon heuristic; classroom pilot validation is planned.
 - **Does it use AI?** Optional Gemini structured reasoning analysis with model provenance. Without key it uses deterministic rule-based fallback and explicitly labels the analysis mode.
+- **How can judges verify real Gemini?** Configure backend/.env, run `python -m app.ai_check`, then submit a practice answer and inspect `analysis_mode=gemini-structured`. The real call requires a valid key and network.
 - **Is it safe for real school data?** Not yet. This demo uses selectable sample profiles; production requires real auth, class permissions, consent, privacy review and rate limiting.
 - **Can it run without external APIs?** Yes. Core full-stack workflow works offline after dependencies are installed.
 
